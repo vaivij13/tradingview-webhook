@@ -30,6 +30,35 @@ def get_current_btc_price():
         print(f"❌ Failed to fetch BTC price: {response.text}")
         return None
     
+# Webhook endpoint for TradingView
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    data = request.json
+    print(f"📩 Received webhook data: {data}")
+
+    try:
+        ticker = data.get("ticker")
+        action = data.get("action")
+        quantity = data.get("quantity", None)  # Optional, since we now auto-calculate
+
+        if not ticker or not action:
+            print("🚨 Missing required fields in webhook data!")
+            return jsonify({"error": "Missing required fields"}), 400
+
+        # If quantity is None, use available balance to calculate it
+        if not quantity:
+            quantity = calculate_trade_size(ticker)
+
+        print(f"⚡ Placing order: {action} {quantity} {ticker}")
+        alpaca_response = place_order(ticker, quantity, action)
+
+        return jsonify(alpaca_response)
+
+    except Exception as e:
+        print(f"❌ Exception: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 # Function to place orders on Alpaca
 def place_order(symbol, side):
     available_funds = get_available_funds()
@@ -56,25 +85,6 @@ def place_order(symbol, side):
     else:
         print("🚨 Not enough funds or BTC price unavailable!")
         return None
-
-# Webhook endpoint for TradingView
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    """ Handles incoming TradingView alerts and places an order on Alpaca """
-    data = request.json
-    print(f"Received webhook data: {data}")
-
-    ticker = data.get("ticker")  # Example: "BTCUSD"
-    action = data.get("action")  # Example: "buy" or "sell"
-    quantity = data.get("quantity")  # Example: 0.01
-
-    if action not in ["buy", "sell"]:
-        print("Invalid action received.")
-        return jsonify({"error": "Invalid action"}), 400
-
-    # Place order on Alpaca
-    alpaca_response = place_order(ticker, quantity, action)
-    return jsonify(alpaca_response), 200
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=10000)
