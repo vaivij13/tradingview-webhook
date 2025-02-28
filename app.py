@@ -30,38 +30,31 @@ def get_available_funds():
 def get_available_crypto():
     """Fetch the current BTC holdings in Alpaca."""
     url = f"{ALPACA_BASE_URL}/v2/positions"
-    headers = {
-        "APCA-API-KEY-ID": ALPACA_API_KEY,
-        "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY
-    }
-
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=HEADERS)
 
     if response.status_code == 200:
         positions = response.json()
 
+        print(f"🔍 Raw Positions Data: {positions}")  # Debugging step
+
         for position in positions:
-            if position["asset_class"] == "crypto" and position["symbol"] == "BTC/USD":
+            if position["asset_class"] == "crypto" and position["symbol"] in ["BTC/USD", "BTC"]:
                 btc_available = float(position["qty"])
                 print(f"✅ Available BTC: {btc_available}")
                 return btc_available
 
         print("🚨 No BTC position found. You may not own any.")
         return 0
-
     else:
         print(f"❌ Failed to fetch positions: {response.text}")
         return 0
 
 
+# Function to get the latest BTC price
 def get_current_btc_price():
     url = "https://data.alpaca.markets/v1beta3/crypto/us/latest/trades?symbols=BTC/USD"
-    headers = {
-        "APCA-API-KEY-ID": ALPACA_API_KEY,
-        "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY
-    }
 
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=HEADERS)
 
     if response.status_code == 200:
         try:
@@ -78,42 +71,46 @@ def get_current_btc_price():
 
 # Function to place orders on Alpaca
 def place_order(symbol, action):
-    headers = {
-        "APCA-API-KEY-ID": ALPACA_API_KEY,
-        "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY
-    }
-
     btc_price = get_current_btc_price()
+    if btc_price is None:
+        print("🚨 BTC price unavailable! Cannot place order.")
+        return None
 
     if action == "buy":
         available_funds = get_available_funds()
-        if available_funds <= 1:  # Avoid placing tiny orders
+        if available_funds <= 1:
             print("🚨 Not enough USD to buy BTC!")
             return None
 
-        btc_quantity = (available_funds * 0.5) / btc_price  # Use 50% of balance
-        btc_quantity = round(btc_quantity, 6)
+        # Use 'notional' (dollar amount) for buys
+        order_data = {
+            "symbol": symbol,
+            "notional": available_funds * 0.5,  # Spend 50% of available funds
+            "side": "buy",
+            "type": "market",
+            "time_in_force": "gtc"
+        }
 
     elif action == "sell":
-        btc_quantity = get_available_crypto()  # Get actual BTC balance
+        btc_quantity = get_available_crypto()
         if btc_quantity <= 0:
             print("🚨 Not enough BTC to sell!")
             return None
+
+        order_data = {
+            "symbol": symbol,
+            "qty": btc_quantity,  # Selling uses 'qty' (BTC amount)
+            "side": "sell",
+            "type": "market",
+            "time_in_force": "gtc"
+        }
 
     else:
         print("❌ Invalid action!")
         return None
 
-    order_data = {
-        "symbol": symbol,
-        "qty": btc_quantity,
-        "side": action,
-        "type": "market",
-        "time_in_force": "gtc"
-    }
-
     url = f"{ALPACA_BASE_URL}/v2/orders"
-    response = requests.post(url, json=order_data, headers=headers)
+    response = requests.post(url, json=order_data, headers=HEADERS)
 
     print(f"✅ Alpaca Order Response: {response.status_code}, {response.text}")
     return response.json()
