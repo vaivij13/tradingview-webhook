@@ -27,8 +27,8 @@ def get_available_funds():
 
 
 # Function to get available BTC balance
-def get_available_crypto(symbol="BTC/USD"):
-    """Fetch the current amount of BTC available in your Alpaca account."""
+def get_available_crypto():
+    """Fetch the current BTC holdings in Alpaca."""
     url = f"{ALPACA_BASE_URL}/v2/positions"
     headers = {
         "APCA-API-KEY-ID": ALPACA_API_KEY,
@@ -39,14 +39,16 @@ def get_available_crypto(symbol="BTC/USD"):
 
     if response.status_code == 200:
         positions = response.json()
+
         for position in positions:
-            if position["symbol"] == symbol:
+            if position["asset_class"] == "crypto" and position["symbol"] == "BTC/USD":
                 btc_available = float(position["qty"])
                 print(f"✅ Available BTC: {btc_available}")
                 return btc_available
 
-        print("🚨 No position found for BTC/USD. You may not own any.")
+        print("🚨 No BTC position found. You may not own any.")
         return 0
+
     else:
         print(f"❌ Failed to fetch positions: {response.text}")
         return 0
