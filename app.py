@@ -30,19 +30,21 @@ def place_order(ticker, action, quantity):
 # Webhook endpoint for TradingView
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    """ Handles incoming TradingView alerts and places an order on Alpaca """
     data = request.json
-    if not data or 'ticker' not in data or 'action' not in data or 'quantity' not in data:
-        return jsonify({"error": "Invalid data"}), 400
+    print(f"Received webhook data: {data}")
 
-    ticker = data['ticker']
-    action = data['action']
-    quantity = int(data['quantity'])
+    ticker = data.get("ticker")  # Example: "BTCUSD"
+    action = data.get("action")  # Example: "buy" or "sell"
+    quantity = data.get("quantity")  # Example: 0.01
 
     if action not in ["buy", "sell"]:
+        print("Invalid action received.")
         return jsonify({"error": "Invalid action"}), 400
 
-    response = place_order(ticker, action, quantity)
-    return jsonify(response)
+    # Place order on Alpaca
+    alpaca_response = place_order(ticker, quantity, action)
+    return jsonify(alpaca_response), 200
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=10000)
