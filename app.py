@@ -5,7 +5,7 @@ import os
 app = Flask(__name__)
 
 # Alpaca API credentials (set these in Render environment variables)
-ALPACA_BASE_URL = "https://paper-api.alpaca.markets"
+ALPACA_BASE_URL = "https://api.alpaca.markets"
 ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
 ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
 
