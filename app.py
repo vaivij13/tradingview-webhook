@@ -43,23 +43,17 @@ def get_available_crypto(symbol):
 
 
 def get_current_btc_price():
-    url = f"{ALPACA_BASE_URL}/v2/assets/BTC"
+    url = f"{ALPACA_BASE_URL}/v1beta1/crypto/BTCUSD/quotes/latest"
     response = requests.get(url, headers=HEADERS)
 
     if response.status_code == 200:
-        asset_data = response.json()
-        if asset_data.get("tradable", False):
-            # Fetch the latest BTC/USD price using market data
-            price_url = f"{ALPACA_BASE_URL}/v2/marketdata/crypto/BTCUSD/trades/latest"
-            price_response = requests.get(price_url, headers=HEADERS)
-
-            if price_response.status_code == 200:
-                btc_price = price_response.json().get("trade", {}).get("p", None)  # Last trade price
-                if btc_price:
-                    return float(btc_price)
+        btc_price = response.json().get("quote", {}).get("ap", None)  # 'ap' = ask price
+        if btc_price:
+            return float(btc_price)
 
     print(f"❌ Failed to fetch BTC price: {response.text}")
     return None
+
 
 
 # Function to place orders on Alpaca
