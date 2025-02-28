@@ -9,6 +9,39 @@ ALPACA_BASE_URL = "https://api.alpaca.markets"
 ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
 ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
 
+def calculate_trade_size(ticker):
+    """ Calculate how much of an asset can be bought with available cash balance. """
+    try:
+        # Fetch account balance from Alpaca
+        alpaca_url = "https://paper-api.alpaca.markets/v2/account"
+        headers = {
+            "APCA-API-KEY-ID": "YOUR_ALPACA_API_KEY",
+            "APCA-API-SECRET-KEY": "YOUR_ALPACA_SECRET_KEY"
+        }
+        response = requests.get(alpaca_url, headers=headers)
+        account_data = response.json()
+
+        cash_balance = float(account_data["cash"])  # Available cash
+
+        # Fetch the latest BTC/USD price from Alpaca
+        btc_price_url = "https://paper-api.alpaca.markets/v2/assets/BTC/USD"
+        btc_price_response = requests.get(btc_price_url, headers=headers)
+        btc_price = float(btc_price_response.json().get("price", 0))
+
+        if btc_price == 0:
+            print("🚨 Error: BTC price could not be fetched.")
+            return 0
+
+        # Calculate quantity based on available balance
+        trade_size = round(cash_balance / btc_price, 6)  # Round to 6 decimal places
+        print(f"💰 Cash balance: ${cash_balance}, BTC Price: ${btc_price}, Trade Size: {trade_size} BTC")
+
+        return trade_size
+
+    except Exception as e:
+        print(f"❌ Error calculating trade size: {e}")
+        return 0
+
 def get_available_funds():
     response = requests.get(f"{ALPACA_BASE_URL}/v2/account", headers=headers)
     if response.status_code == 200:
