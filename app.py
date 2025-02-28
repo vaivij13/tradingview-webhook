@@ -21,18 +21,24 @@ def calculate_trade_size(ticker):
         response = requests.get(alpaca_url, headers=headers)
         account_data = response.json()
 
-        cash_balance = float(account_data["cash"])  # Available cash
+        # Get available cash balance (use buying_power for margin accounts)
+        cash_balance = float(account_data.get("buying_power", 0))  # <- FIXED
+
+        if cash_balance <= 0:
+            print("🚨 Error: No available cash balance.")
+            return 0
 
         # Fetch the latest BTC/USD price from Alpaca
-        btc_price_url = "https://paper-api.alpaca.markets/v2/assets/BTC/USD"
+        btc_price_url = "https://data.alpaca.markets/v1/last_quote/currencies/BTCUSD"
         btc_price_response = requests.get(btc_price_url, headers=headers)
-        btc_price = float(btc_price_response.json().get("price", 0))
+        btc_price_data = btc_price_response.json()
+        btc_price = float(btc_price_data.get("last", {}).get("askprice", 0))  # <- FIXED
 
         if btc_price == 0:
             print("🚨 Error: BTC price could not be fetched.")
             return 0
 
-        # Calculate quantity based on available balance
+        # Calculate trade size
         trade_size = round(cash_balance / btc_price, 6)  # Round to 6 decimal places
         print(f"💰 Cash balance: ${cash_balance}, BTC Price: ${btc_price}, Trade Size: {trade_size} BTC")
 
@@ -41,6 +47,7 @@ def calculate_trade_size(ticker):
     except Exception as e:
         print(f"❌ Error calculating trade size: {e}")
         return 0
+
 
 def get_available_funds():
     response = requests.get(f"{ALPACA_BASE_URL}/v2/account", headers=headers)
