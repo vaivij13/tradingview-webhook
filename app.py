@@ -9,26 +9,53 @@ ALPACA_BASE_URL = "https://api.alpaca.markets"
 ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
 ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
 
-# Function to place orders on Alpaca
-def place_order(symbol, qty, side):
-    print(f"⚡ Placing order: {side} {qty} of {symbol}")  # Confirm function runs
-    url = f"{ALPACA_BASE_URL}/v2/orders"
-    headers = {
-        "APCA-API-KEY-ID": ALPACA_API_KEY,
-        "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY,
-        "Content-Type": "application/json"
-    }
-    order_data = {
-        "symbol": symbol,
-        "qty": qty,
-        "side": side,
-        "type": "market",
-        "time_in_force": "gtc"
-    }
-    response = requests.post(url, json=order_data, headers=headers)
-    print(f"✅ Alpaca Order Response: {response.status_code}, {response.text}")  # Log full response
-    return response.json()
+def get_available_funds():
+    response = requests.get(f"{ALPACA_BASE_URL}/v2/account", headers=headers)
+    if response.status_code == 200:
+        account_info = response.json()
+        return float(account_info["buying_power"])  # Buying power for crypto
+    else:
+        print(f"❌ Failed to fetch account info: {response.text}")
+        return 0  # Default to 0 if request fails
 
+
+def get_current_btc_price():
+    url = "https://data.alpaca.markets/v1beta1/crypto/latest?symbols=BTC/USD"
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        btc_price = response.json()["crypto"]["BTC/USD"]["latestTrade"]["p"]
+        return float(btc_price)
+    else:
+        print(f"❌ Failed to fetch BTC price: {response.text}")
+        return None
+    
+# Function to place orders on Alpaca
+def place_order(symbol, side):
+    available_funds = get_available_funds()
+    btc_price = get_current_btc_price()
+
+    if btc_price and available_funds > 1:  # Avoid placing tiny orders
+        btc_quantity = available_funds / btc_price  # Convert USD to BTC
+        btc_quantity = round(btc_quantity, 6)  # Round to 6 decimals
+
+        print(f"⚡ Placing order: {side} ${available_funds} worth of {symbol} (~{btc_quantity} BTC)")
+
+        url = f"{ALPACA_BASE_URL}/v2/orders"
+        order_data = {
+            "symbol": symbol,
+            "qty": btc_quantity,
+            "side": side,
+            "type": "market",
+            "time_in_force": "gtc"
+        }
+
+        response = requests.post(url, json=order_data, headers=headers)
+        print(f"✅ Alpaca Order Response: {response.status_code}, {response.text}")
+        return response.json()
+    else:
+        print("🚨 Not enough funds or BTC price unavailable!")
+        return None
 
 # Webhook endpoint for TradingView
 @app.route('/webhook', methods=['POST'])
