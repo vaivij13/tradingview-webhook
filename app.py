@@ -38,7 +38,7 @@ def get_available_crypto():
         print(f"🔍 Raw Positions Data: {positions}")  # Debugging step
 
         for position in positions:
-            if position["asset_class"] == "crypto" and position["symbol"] in ["BTC/USD", "BTC"]:
+            if position["asset_class"] == "crypto" and position["symbol"] in ["BTC/USD", "BTCUSD"]:
                 btc_available = float(position["qty"])
                 print(f"✅ Available BTC: {btc_available}")
                 return btc_available
