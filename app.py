@@ -36,7 +36,7 @@ def place_order(symbol, side):
     btc_price = get_current_btc_price()
 
     if btc_price and available_funds > 1:  # Avoid placing tiny orders
-        btc_quantity = available_funds / btc_price  # Convert USD to BTC
+        btc_quantity = (available_funds * 0.5) / btc_price  # Use 50% of balance
         btc_quantity = round(btc_quantity, 6)  # Round to 6 decimals
 
         print(f"⚡ Placing order: {side} ${available_funds} worth of {symbol} (~{btc_quantity} BTC)")
