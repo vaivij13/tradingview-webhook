@@ -10,22 +10,25 @@ ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
 ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
 
 # Function to place orders on Alpaca
-def place_order(ticker, action, quantity):
+def place_order(symbol, qty, side):
+    print(f"⚡ Placing order: {side} {qty} of {symbol}")  # Confirm function runs
     url = f"{ALPACA_BASE_URL}/v2/orders"
     headers = {
         "APCA-API-KEY-ID": ALPACA_API_KEY,
         "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY,
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
     }
-    data = {
-        "symbol": ticker,
-        "side": action,
-        "qty": quantity,
+    order_data = {
+        "symbol": symbol,
+        "qty": qty,
+        "side": side,
         "type": "market",
         "time_in_force": "gtc"
     }
-    response = requests.post(url, json=data, headers=headers)
+    response = requests.post(url, json=order_data, headers=headers)
+    print(f"✅ Alpaca Order Response: {response.status_code}, {response.text}")  # Log full response
     return response.json()
+
 
 # Webhook endpoint for TradingView
 @app.route('/webhook', methods=['POST'])
