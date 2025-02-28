@@ -9,30 +9,32 @@ ALPACA_BASE_URL = "https://api.alpaca.markets"
 ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
 ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
 
+# Common headers for Alpaca API requests
+HEADERS = {
+    "APCA-API-KEY-ID": ALPACA_API_KEY,
+    "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY,
+    "Content-Type": "application/json"
+}
+
 def calculate_trade_size(ticker):
     """ Calculate how much of an asset can be bought with available cash balance. """
     try:
         # Fetch account balance from Alpaca
-        alpaca_url = "https://paper-api.alpaca.markets/v2/account"
-        headers = {
-            "APCA-API-KEY-ID": "YOUR_ALPACA_API_KEY",
-            "APCA-API-SECRET-KEY": "YOUR_ALPACA_SECRET_KEY"
-        }
-        response = requests.get(alpaca_url, headers=headers)
+        response = requests.get(f"{ALPACA_BASE_URL}/v2/account", headers=HEADERS)
         account_data = response.json()
 
         # Get available cash balance (use buying_power for margin accounts)
-        cash_balance = float(account_data.get("buying_power", 0))  # <- FIXED
+        cash_balance = float(account_data.get("buying_power", 0))
 
         if cash_balance <= 0:
             print("🚨 Error: No available cash balance.")
             return 0
 
         # Fetch the latest BTC/USD price from Alpaca
-        btc_price_url = "https://data.alpaca.markets/v1/last_quote/currencies/BTCUSD"
-        btc_price_response = requests.get(btc_price_url, headers=headers)
+        btc_price_url = "https://data.alpaca.markets/v1beta1/crypto/latest?symbols=BTC/USD"
+        btc_price_response = requests.get(btc_price_url, headers=HEADERS)
         btc_price_data = btc_price_response.json()
-        btc_price = float(btc_price_data.get("last", {}).get("askprice", 0))  # <- FIXED
+        btc_price = float(btc_price_data["crypto"]["BTC/USD"]["latestTrade"]["p"])
 
         if btc_price == 0:
             print("🚨 Error: BTC price could not be fetched.")
@@ -48,28 +50,6 @@ def calculate_trade_size(ticker):
         print(f"❌ Error calculating trade size: {e}")
         return 0
 
-
-def get_available_funds():
-    response = requests.get(f"{ALPACA_BASE_URL}/v2/account", headers=headers)
-    if response.status_code == 200:
-        account_info = response.json()
-        return float(account_info["buying_power"])  # Buying power for crypto
-    else:
-        print(f"❌ Failed to fetch account info: {response.text}")
-        return 0  # Default to 0 if request fails
-
-
-def get_current_btc_price():
-    url = "https://data.alpaca.markets/v1beta1/crypto/latest?symbols=BTC/USD"
-    response = requests.get(url, headers=headers)
-
-    if response.status_code == 200:
-        btc_price = response.json()["crypto"]["BTC/USD"]["latestTrade"]["p"]
-        return float(btc_price)
-    else:
-        print(f"❌ Failed to fetch BTC price: {response.text}")
-        return None
-    
 # Webhook endpoint for TradingView
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -89,6 +69,10 @@ def webhook():
         if not quantity:
             quantity = calculate_trade_size(ticker)
 
+        if quantity == 0:
+            print("🚨 Not enough funds to place an order!")
+            return jsonify({"error": "Insufficient funds"}), 400
+
         print(f"⚡ Placing order: {action} {quantity} {ticker}")
         alpaca_response = place_order(ticker, quantity, action)
 
@@ -98,33 +82,25 @@ def webhook():
         print(f"❌ Exception: {e}")
         return jsonify({"error": str(e)}), 500
 
-
 # Function to place orders on Alpaca
-def place_order(symbol, side):
-    available_funds = get_available_funds()
-    btc_price = get_current_btc_price()
-
-    if btc_price and available_funds > 1:  # Avoid placing tiny orders
-        btc_quantity = (available_funds * 0.5) / btc_price  # Use 50% of balance
-        btc_quantity = round(btc_quantity, 6)  # Round to 6 decimals
-
-        print(f"⚡ Placing order: {side} ${available_funds} worth of {symbol} (~{btc_quantity} BTC)")
-
-        url = f"{ALPACA_BASE_URL}/v2/orders"
+def place_order(symbol, quantity, side):
+    """ Places an order on Alpaca """
+    try:
         order_data = {
-            "symbol": symbol,
-            "qty": btc_quantity,
+            "symbol": symbol.replace("/", ""),  # Convert BTC/USD -> BTCUSD
+            "qty": quantity,
             "side": side,
             "type": "market",
             "time_in_force": "gtc"
         }
 
-        response = requests.post(url, json=order_data, headers=headers)
+        response = requests.post(f"{ALPACA_BASE_URL}/v2/orders", json=order_data, headers=HEADERS)
         print(f"✅ Alpaca Order Response: {response.status_code}, {response.text}")
         return response.json()
-    else:
-        print("🚨 Not enough funds or BTC price unavailable!")
-        return None
+
+    except Exception as e:
+        print(f"❌ Error placing order: {e}")
+        return {"error": str(e)}
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=10000)
