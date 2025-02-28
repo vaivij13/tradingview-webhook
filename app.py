@@ -77,47 +77,45 @@ def get_current_btc_price():
 
 
 # Function to place orders on Alpaca
-def place_order(symbol, side):
+def place_order(symbol, action):
+    headers = {
+        "APCA-API-KEY-ID": ALPACA_API_KEY,
+        "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY
+    }
+
     btc_price = get_current_btc_price()
 
-    if not btc_price:
-        print("🚨 BTC price unavailable! Cannot place order.")
-        return {"error": "BTC price unavailable"}
-
-    if side == "buy":
+    if action == "buy":
         available_funds = get_available_funds()
-        if available_funds < 1:
-            print("🚨 Not enough funds to buy BTC!")
-            return {"error": "Insufficient USD balance"}
+        if available_funds <= 1:  # Avoid placing tiny orders
+            print("🚨 Not enough USD to buy BTC!")
+            return None
 
-        btc_quantity = round(available_funds / btc_price, 6)  # Buy as much BTC as possible
+        btc_quantity = (available_funds * 0.5) / btc_price  # Use 50% of balance
+        btc_quantity = round(btc_quantity, 6)
 
-    elif side == "sell":
-        available_btc = get_available_crypto(symbol)
-        if available_btc < 0.0001:  # Avoid placing tiny sell orders
+    elif action == "sell":
+        btc_quantity = get_available_crypto()  # Get actual BTC balance
+        if btc_quantity <= 0:
             print("🚨 Not enough BTC to sell!")
-            return {"error": "Insufficient BTC balance"}
-
-        btc_quantity = available_btc  # Sell entire BTC balance
+            return None
 
     else:
-        print("🚨 Invalid order side received!")
-        return {"error": "Invalid order side"}
+        print("❌ Invalid action!")
+        return None
 
-    print(f"⚡ Placing order: {side} {btc_quantity} {symbol}")
-
-    url = f"{ALPACA_BASE_URL}/v2/orders"
     order_data = {
         "symbol": symbol,
         "qty": btc_quantity,
-        "side": side,
+        "side": action,
         "type": "market",
         "time_in_force": "gtc"
     }
 
-    response = requests.post(url, json=order_data, headers=HEADERS)
-    print(f"✅ Alpaca Order Response: {response.status_code}, {response.text}")
+    url = f"{ALPACA_BASE_URL}/v2/orders"
+    response = requests.post(url, json=order_data, headers=headers)
 
+    print(f"✅ Alpaca Order Response: {response.status_code}, {response.text}")
     return response.json()
 
 
