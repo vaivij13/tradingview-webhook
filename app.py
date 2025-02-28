@@ -85,7 +85,7 @@ def place_order(symbol, action):
         # Use 'notional' (dollar amount) for buys
         order_data = {
             "symbol": symbol,
-            "notional": available_funds * 0.5,  # Spend 50% of available funds
+            "notional": available_funds,  # Spend 50% of available funds
             "side": "buy",
             "type": "market",
             "time_in_force": "gtc"
