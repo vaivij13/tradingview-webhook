@@ -43,11 +43,13 @@ def get_available_crypto(symbol):
 
 
 def get_current_btc_price():
-    url = f"{ALPACA_BASE_URL}/v2/assets/BTC/USD"
+    url = f"{ALPACA_BASE_URL}/v1beta1/crypto/latest?symbols=BTC/USD"
     response = requests.get(url, headers=HEADERS)
 
     if response.status_code == 200:
-        btc_price = response.json().get("price", None)
+        btc_data = response.json().get("crypto", {}).get("BTC/USD", {})
+        btc_price = btc_data.get("latestTrade", {}).get("p", None)  # "p" is the price field
+
         if btc_price:
             return float(btc_price)
 
