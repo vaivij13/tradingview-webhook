@@ -43,7 +43,7 @@ def get_available_crypto(symbol):
 
 
 def get_current_btc_price():
-    url = "https://data.alpaca.markets/v1beta1/crypto/us/latest/trades?symbols=BTC/USD"
+    url = "https://data.alpaca.markets/v1beta3/crypto/us/latest/trades?symbols=BTC/USD"
     headers = {
         "APCA-API-KEY-ID": ALPACA_API_KEY,
         "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY
@@ -57,7 +57,7 @@ def get_current_btc_price():
             print(f"✅ BTC Price Fetched: ${btc_price}")
             return float(btc_price)
         except KeyError:
-            print("❌ Failed to parse BTC price from response.")
+            print(f"❌ Unexpected Response Format: {response.json()}")
             return None
     else:
         print(f"❌ Failed to fetch BTC price: {response.text}")
