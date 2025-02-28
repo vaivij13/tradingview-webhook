@@ -63,29 +63,50 @@ def calculate_trade_size():
         print(f"❌ Error calculating trade size: {e}")
         return 0
 
-def place_order(symbol, side):
-    """Place an order on Alpaca."""
-    quantity = calculate_trade_size()
+def place_order(symbol, action):
+    """
+    Places an order on Alpaca.
+    - For buy: Uses USD balance to determine how much BTC to buy.
+    - For sell: Uses BTC balance to determine how much BTC to sell.
+    """
+    available_funds = get_available_funds()  # USD balance
+    btc_price = get_current_btc_price()  # Latest BTC price
+    available_btc = get_available_crypto(symbol)  # BTC balance
 
-    if quantity > 0:
-        print(f"⚡ Placing order: {side} {quantity} {symbol}")
+    if action == "buy":
+        if available_funds < 1:  # Ensure at least $1 for trade
+            print("🚨 Not enough USD to buy BTC!")
+            return {"error": "Insufficient USD balance"}
 
-        order_data = {
-            "symbol": symbol,
-            "qty": quantity,
-            "side": side,
-            "type": "market",
-            "time_in_force": "gtc"
-        }
+        btc_quantity = (available_funds * 0.5) / btc_price  # Buy with 50% of balance
+        btc_quantity = round(btc_quantity, 6)  # Round to 6 decimals
 
-        url = f"{ALPACA_BASE_URL}/v2/orders"
-        response = requests.post(url, json=order_data, headers=HEADERS)
+    elif action == "sell":
+        if available_btc < 0.0001:  # Ensure at least a small BTC amount
+            print("🚨 Not enough BTC to sell!")
+            return {"error": "Insufficient BTC balance"}
 
-        print(f"✅ Alpaca Order Response: {response.status_code}, {response.text}")
-        return response.json()
+        btc_quantity = available_btc  # Sell entire BTC balance
+
     else:
-        print("🚨 Not enough funds to place an order!")
-        return {"error": "Not enough funds"}
+        print("🚨 Invalid action type!")
+        return {"error": "Invalid action"}
+
+    print(f"⚡ Placing {action} order for {btc_quantity} BTC ({symbol})")
+
+    # Send order to Alpaca
+    url = f"{ALPACA_BASE_URL}/v2/orders"
+    order_data = {
+        "symbol": symbol,
+        "qty": btc_quantity,
+        "side": action,
+        "type": "market",
+        "time_in_force": "gtc"
+    }
+
+    response = requests.post(url, json=order_data, headers=headers)
+    print(f"✅ Alpaca Order Response: {response.status_code}, {response.text}")
+    return response.json()
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
